@@ -83,15 +83,24 @@ func wrapWithoutBreaksInWords(text string, consoleWidth int) (splitText string) 
 }
 
 type TestCheck struct {
-	viewport            viewport.Model
-	textarea            textarea.Model
-	vpFailed            viewport.Model
+	viewport viewport.Model
+	textarea textarea.Model
+	vpFailed viewport.Model
+	// failedPanel is what vpFailed has been given to show. A viewport hands
+	// back its rendered view, borders and all, and never its content, so the
+	// content has to be kept here to be able to add to it.
+	failedPanel         string
 	Questions           []Question
 	SuccessQuestions    []Question
 	FailedQuestions     []Question
 	CurrentQuestion     *Question
 	LastQuestionSuccess bool
 }
+
+// panelBorderColumns is what the two panels spend on their own borders: a
+// left and a right column each. The panels have to be laid out inside what
+// is left, or the pair of them comes out wider than the terminal.
+const panelBorderColumns = 4
 
 const (
 	initialTextareaHeight    = 2
@@ -154,8 +163,9 @@ func initializeModel(questions []Question) (testCheckModel TestCheck, err error)
 	if termSizeErr != nil {
 		panic(termSizeErr)
 	}
-	rightPanelWidth := width * 3 / 7
-	leftPanelWidth := width - rightPanelWidth
+	panelsWidth := width - panelBorderColumns
+	rightPanelWidth := panelsWidth * 3 / 7
+	leftPanelWidth := panelsWidth - rightPanelWidth
 	if len(questions) == 0 {
 		err = errors.New("выбранный файл не содержит вопросов попробуйте добавить новые")
 		return TestCheck{}, err
@@ -200,14 +210,14 @@ func initializeModel(questions []Question) (testCheckModel TestCheck, err error)
 		BorderForeground(lipgloss.Color("52"))
 
 	testCheckModel = TestCheck{
-		vpModel,
-		taModel,
-		vpFailedModel,
-		questions,
-		[]Question{},
-		[]Question{},
-		&currentQuestion,
-		true,
+		viewport:            vpModel,
+		textarea:            taModel,
+		vpFailed:            vpFailedModel,
+		Questions:           questions,
+		SuccessQuestions:    []Question{},
+		FailedQuestions:     []Question{},
+		CurrentQuestion:     &currentQuestion,
+		LastQuestionSuccess: true,
 	}
 	return
 }
@@ -247,17 +257,16 @@ func (m *TestCheck) prepareNextQuestion() {
 	}
 }
 
+// prepareFailedVpContent puts the pair just failed at the top of the panel,
+// above the ones failed before it.
 func (m *TestCheck) prepareFailedVpContent(yourAnswer string) {
-	var builder strings.Builder
-	for l := range strings.SplitSeq(m.vpFailed.View(), "\n") {
-		if l != "" {
-			builder.WriteString(l + "\n")
-		}
+	latest := printWithoutBreaksInWords("V: "+m.CurrentQuestion.Answer, m.vpFailed.Width-1) + "\n" +
+		printWithoutBreaksInWords("X: "+yourAnswer, m.vpFailed.Width-1) + "\n"
+
+	if m.failedPanel != "" {
+		latest += "\n"
 	}
 
-	m.vpFailed.SetContent(
-		printWithoutBreaksInWords("V: "+m.CurrentQuestion.Answer, m.vpFailed.Width-1) + "\n" +
-			printWithoutBreaksInWords("X: "+yourAnswer, m.vpFailed.Width-1) + "\n" +
-			builder.String(),
-	)
+	m.failedPanel = latest + m.failedPanel
+	m.vpFailed.SetContent(m.failedPanel)
 }
