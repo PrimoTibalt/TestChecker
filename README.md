@@ -147,6 +147,43 @@ TAILSCALE_IP=100.x.y.z TAILSCALE_PARTNER_IP=100.a.b.c,100.d.e.f ./sync
   reconciled: without tombstones, "deleted here" is indistinguishable from
   "added there".
 
+## On the phone
+
+`mobile/` is a Flutter app that quizzes on the same question set from an Android
+phone. It is a second front-end over the same format, not a separate product:
+the on-disk layout, the `/!/` line format and the grading are ports of the Go
+code, checked against it — `ld.go` and the Dart port agree on every distance over
+the whole question set.
+
+It comes in two looks, switched in its settings: the terminal palette above, or
+the calmer definition-box look borrowed from the bilingual reader — near black,
+one light border, one warm accent, a hint bar along the bottom. Only the palette
+and the font change; the screens are the same either way.
+
+It joins the sync mesh as a **client-only peer**: it keeps its own copy of the
+`Questions` directory and reconciles with the machines listed on its settings
+screen through the daemon's existing `/topics`, `/topic` and `/syncTopic`
+endpoints — the daemon needs no changes, and no phone address goes in anyone's
+`TAILSCALE_PARTNER_IP`. It talks to *every* configured machine rather than the
+first that answers, because a machine that accepts a `/syncTopic` has its watcher
+paused and does not pass the change on.
+
+```sh
+cd mobile
+flutter test           # the ported logic, and sync against fake partners
+flutter run            # onto a connected phone
+```
+
+Install Tailscale on the phone, add each machine's tailnet address under
+*настройки*, and pull down on the menu to sync. If the machine runs a firewall,
+let the port through on the tailnet interface —
+`sudo ufw allow in on tailscale0 to any port 8081 proto tcp`. Between syncs the app works entirely off
+its own copy, plane mode included.
+
+v1 covers taking a test and adding a question to a topic; creating, renaming and
+deleting topics is still terminal-only. Because the phone runs no listener,
+nothing is ever pushed *to* it — it catches up when it is opened.
+
 ## Layout
 
 | Path | What's in it |
@@ -158,4 +195,5 @@ TAILSCALE_IP=100.x.y.z TAILSCALE_PARTNER_IP=100.a.b.c,100.d.e.f ./sync
 | `shiftenter.go` | The terminal-level shift+enter workaround |
 | `topicpersistence/` | Reading and writing topic files — shared by the TUI and the daemon |
 | `cmd/sync/` | The sync daemon: config, routing, reconcile, watcher, server, locking |
+| `mobile/` | The Android app: the same files, the same grading, a touch UI ([below](#on-the-phone)) |
 | `update.sh` | Builds an RPM and publishes it to a local `createrepo_c` repo |

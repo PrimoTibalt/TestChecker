@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The sync daemon speaks plain HTTP, so cleartext has to be allowed or every
+  request fails on Android 9 and up.
+
+  It would be nicer to allow it only for the 100.64.0.0/10 range Tailscale hands
+  out, but a <domain> entry matches one host at a time and cannot express a
+  range, and the addresses are typed in by the user at runtime. The app only
+  ever connects to the machines listed on its settings screen, and only over the
+  tailnet.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
