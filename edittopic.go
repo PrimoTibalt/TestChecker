@@ -62,7 +62,8 @@ func (m EditTopicModel) View() string {
 				WithTheme(inputTheme).
 				WithWidth(w-border.GetLeftSize()-border.GetRightSize()-Padding).
 				WithHeight(h-border.GetTopSize()-border.GetBottomSize()-4*Padding).
-				View())
+				View(),
+		)
 		return borderStyle.Render(content)
 	}
 
@@ -70,7 +71,8 @@ func (m EditTopicModel) View() string {
 		lipgloss.Center,
 		m.Select.WithWidth(w-Padding).
 			WithHeight(h-Padding).
-			View())
+			View(),
+	)
 }
 
 func (m EditTopicModel) Init() tea.Cmd {
@@ -109,6 +111,10 @@ func (m *EditTopicModel) processInputInSelectingMode(msg tea.Msg) {
 			}
 		case "e":
 			m.updateInputWithNewValue()
+		case "d":
+			if m.EditingPart == QuestionPart {
+				m.removeQuestion()
+			}
 		}
 	}
 
@@ -280,6 +286,40 @@ func (m *EditTopicModel) updateSelectWithOptions() {
 	m.showQuestionsOfHoveredTopic()
 	// A brand new form has never been updated, so it has nothing to render yet.
 	rebuildFormView(m.Select)
+}
+
+func getPrevKey(dict map[string]string, val string) (prevKey string) {
+	if len(dict) == 1 {
+		return ""
+	}
+
+	deletingFirstQuestion := false
+	for key := range dict {
+		if deletingFirstQuestion {
+			prevKey = key
+			break
+		}
+
+		if val == key {
+			if prevKey == "" {
+				deletingFirstQuestion = true
+			} else {
+				break
+			}
+		} else {
+			prevKey = key
+		}
+	}
+
+	return prevKey
+}
+
+func (m *EditTopicModel) removeQuestion() {
+	previousQuestion := getPrevKey(m.Content[m.SelectedTopic], selectedValue)
+	delete(m.Content[m.SelectedTopic], selectedValue)
+	selectedValue = previousQuestion
+	persistence.UpdateTopicFile(m.SelectedTopic, m.Content[m.SelectedTopic])
+	m.updateSelectWithOptions()
 }
 
 func (m *EditTopicModel) updateInputWithNewValue() {
